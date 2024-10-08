@@ -57,7 +57,7 @@ merged_df = left_join( # merge datasets using a left join so it only includes th
 ```
 
 
-*Produce a reader-friendly table for the number of men and women in each education category, and create a visualization of the age distributions for men and women in each education category.*
+*Produce a reader-friendly table for the number of men and women in each education category.*
 
 ```{r education_categories, messsage=FALSE}
 
@@ -71,7 +71,60 @@ merged_df |>
     values_from = count
   ) |> 
   knitr::kable()
+```
 
+Thee are about the same number of female and male participants in each education category except there are far more males in the high school equivalent group.
+
+*Create a visualization of the age distributions for men and women in each education category.*
+
+```{r}
+merged_df |> 
+  distinct(seqn, .keep_all = TRUE) |> # keep all columns but identify unique seq numbers
+  ggplot(aes(x = age, fill = education)) +
+  geom_histogram(position = "dodge", bins = 10) +
+  facet_grid(. ~ sex) + 
+  theme(legend.position = "bottom") +
+  labs(
+    title = "Age Distribution by Sex and Education Level",
+    fill = "Education Level"
+  ) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10))
+```
+
+There is a concentration of female participants in their 40s and 50s belonging to the more than high school category, while fewer women in the same age group have lower education levels. For males, there is a more even distribution across all ages, but there is a higher concentration of individuals in their 30s and 40s with more than a high school education. Overall, both men and women with higher education levels are distributed more evenly across various age groups, while those with less education are less represented, particularly at younger ages.
+
+
+*Using your tidied dataset, aggregate across minutes to create a total activity variable for each participant.*
+
+```{r}
+trial_df = 
+  merged_df |> 
+  group_by(seqn) |> 
+  summarize(
+    total_mims = sum(mims, na.rm = TRUE)
+  ) |> 
+  distinct(seqn, .keep_all = TRUE)
+```
+
+
+```{r}
+merged_df |> 
+  group_by(seqn, sex, age, education) |> 
+  summarize(
+    total_mims = sum(mims, na.rm = TRUE)
+  ) |> 
+  distinct(seqn, .keep_all = TRUE) |> 
+  ggplot(aes(x = age, y = total_mims, color = sex)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  facet_grid(. ~ education) +
+  theme(legend.position = "bottom") +
+  labs(
+    title = "Total Activity over the Day",
+    color = "Sex",
+    x = "Age",
+    y = "Total Activity (mins)"
+  )
 ```
 
 
