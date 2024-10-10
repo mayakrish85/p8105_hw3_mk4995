@@ -9,7 +9,6 @@ output: github_document
 library(tidyverse)
 ```
 
-
 ## Problem 2
 
 *Start by organizing the datasets - load, clean, merge, and organize into a final `merged_df` dataset.*
@@ -24,7 +23,10 @@ accel_df =
     names_to = "minute_interval",
     names_prefix = "min",
     values_to = "mims"
-  ) # Pivot these columns 
+  ) |> # Pivot these columns 
+  mutate(
+    minute_interval = as.numeric(minute_interval)
+  )
 
 covar_df = 
   read_csv("data/nhanes_covar.csv", skip = 4) |> # skip first 4 rows
@@ -80,13 +82,13 @@ Thee are about the same number of female and male participants in each education
 ```{r}
 merged_df |> 
   distinct(seqn, .keep_all = TRUE) |> # keep all columns but identify unique seq numbers
-  ggplot(aes(x = age, fill = education)) +
+  ggplot(aes(x = age, fill = sex)) +
   geom_histogram(position = "dodge", bins = 10) +
-  facet_grid(. ~ sex) + 
+  facet_grid(. ~ education) + 
   theme(legend.position = "bottom") +
   labs(
     title = "Age Distribution by Sex and Education Level",
-    fill = "Education Level"
+    fill = "Sex"
   ) +
   scale_y_continuous(breaks = scales::pretty_breaks(n = 10))
 ```
@@ -97,17 +99,6 @@ There is a concentration of female participants in their 40s and 50s belonging t
 *Using your tidied dataset, aggregate across minutes to create a total activity variable for each participant.*
 
 ```{r}
-trial_df = 
-  merged_df |> 
-  group_by(seqn) |> 
-  summarize(
-    total_mims = sum(mims, na.rm = TRUE)
-  ) |> 
-  distinct(seqn, .keep_all = TRUE)
-```
-
-
-```{r}
 merged_df |> 
   group_by(seqn, sex, age, education) |> 
   summarize(
@@ -116,7 +107,7 @@ merged_df |>
   distinct(seqn, .keep_all = TRUE) |> 
   ggplot(aes(x = age, y = total_mims, color = sex)) +
   geom_point() +
-  geom_smooth(se = FALSE) +
+  geom_smooth(method = "loess") +
   facet_grid(. ~ education) +
   theme(legend.position = "bottom") +
   labs(
@@ -126,6 +117,28 @@ merged_df |>
     y = "Total Activity (mins)"
   )
 ```
+
+Females tend to have a higher total activity level than males in all panels. Overall, in all education categories, there is a general decline in total activity as age increases, especially noticeable after the age of 60. This trend is consistent for both males and females, with some fluctuations before age 60 depending on the education level. Individuals with higher education tend to show a more gradual decline in activity compared to those with less education.
+
+```{r}
+merged_df |> 
+  ggplot(aes(x = minute_interval, y = mims, group = seqn, color = sex)) +
+  geom_line(alpha = 0.1) + 
+  geom_smooth(aes(group = sex), se = FALSE) +
+  facet_grid(. ~ education) +
+  labs(
+    title = "24-hour activity time courses by education and sex",
+    x = "Minutes",
+    Y = "Activity",
+    color = "Sex"
+  ) +
+  scale_x_continuous(
+    breaks = c(0, 500, 1000),
+    limits = c(0, 1440),
+    labels = c("0", "500", "1000")
+  )
+```
+
 
 
 
