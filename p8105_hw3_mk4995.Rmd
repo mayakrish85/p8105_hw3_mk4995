@@ -146,6 +146,87 @@ There is a low activity period early in the day, which is likely when individual
 
 #### Problem 3
 
+*Import, clean, and tidy these data, and describe the resulting dataset.*
+
+```{r message=FALSE}
+
+# Import each dataset, remove duplicates, and add date columns (month and year).
+
+jan_2020 =
+  read_csv("data/citibike/Jan 2020 Citi.csv") |> 
+  janitor::clean_names() |> 
+  mutate(
+    month = "January",
+    year = 2020
+  ) |> 
+  distinct(ride_id, .keep_all = TRUE)
+
+jan_2024 =
+  read_csv("data/citibike/Jan 2024 Citi.csv") |> 
+  janitor::clean_names() |> 
+  mutate(
+    month = "January",
+    year = 2024
+  ) |> 
+  distinct(ride_id, .keep_all = TRUE)
+
+jul_2020 =
+  read_csv("data/citibike/July 2020 Citi.csv") |> 
+  janitor::clean_names() |> 
+  mutate(
+    month = "July",
+    year = 2020
+  ) |> 
+  distinct(ride_id, .keep_all = TRUE)
+
+jul_2024 =
+  read_csv("data/citibike/July 2024 Citi.csv") |> 
+  janitor::clean_names() |> 
+  mutate(
+    month = "July",
+    year = 2020
+  ) |> 
+  distinct(ride_id, .keep_all = TRUE)
+
+# Bind the rows together.
+
+citibike_tidy_df = 
+  bind_rows(jan_2020, jan_2024, jul_2020, jul_2024) |> 
+  mutate(
+    rideable_type = case_match( # remove suffix "_bike"
+      rideable_type,
+      "classic_bike" ~ "classic",
+      "electric_bike" ~ "electric"
+    ),
+    rideable_type = factor( # turn ride type into a factor variable
+      rideable_type,
+      levels = c("classic", "electric")
+    ),
+    member_casual = factor( # turn member_casual into a factor variable
+      member_casual,
+      levels = c("member", "casual")
+    )
+  ) |> 
+  arrange(month, year) # sort by month and year
+
+# Check if there are any NA values in the ride_id column
+any(is.na(citibike_tidy_df$ride_id))
+
+# Get number of rows and columns in dataframe.
+nrows = nrow(citibike_tidy_df)
+ncols = ncol(citibike_tidy_df)
+```
+
+Each dataset was first cleaned separately by using the janitor package, removing duplicate ride_ids, and adding month/year columns. Then, the four datasets (from January and July of 2020 and 2024) were merged using bind_rows(). I then converted `rideable_type` and `member_casual` into factor variables, and removed the suffix "_bike" from the `rideable_type` values. The resulting dataset has `r nrows` rows and `r ncols` columns. The columns are as follows:
+* `ride_id`
+* `rideable_type`: Electric or Classic
+* `weekdays`
+* `start_station_name`
+* `end_station_name`
+* `member_casual`: Member or Casual
+* `month`: June or July
+* `year`: 2020 or 2024
+
 
 
 
