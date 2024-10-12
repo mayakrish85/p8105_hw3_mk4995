@@ -205,6 +205,10 @@ citibike_tidy_df =
     member_casual = factor( # turn member_casual into a factor variable
       member_casual,
       levels = c("member", "casual")
+    ),
+    weekdays = factor(
+      weekdays,
+      levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
     )
   ) |> 
   arrange(year, month) # sort by date
@@ -258,5 +262,22 @@ citibike_tidy_df |>
 ```
 
 *Make a plot to investigate the effects of day of the week, month, and year on median ride duration.*
+
+```{r}
+citibike_tidy_df |>
+  mutate(
+    date = paste(month, year, sep = " ")
+  ) |> 
+  group_by(date, weekdays) |> 
+  summarize(median_duration = median(duration, na.rm = TRUE)) |> 
+  ggplot(aes(x = weekdays, y = median_duration, fill = date)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    x = "Weekdays",
+    y = "Median Ride Duration (mins)",
+    fill = "Date",
+    title = "Median Ride Duration by Weekday, Month, and Year"
+  )
+```
 
 
