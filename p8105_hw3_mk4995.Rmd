@@ -139,6 +139,14 @@ merged_df |>
   )
 ```
 
+This graph depicts 24-hour activity time courses by education level and sex. It is divided into three panels representing different education levels: Less than high school, High school equivalent, and More than high school. The y-axis shows activity levels in terms of "mims" (a measurement of physical activity intensity), while the x-axis spans a 24-hour period in minutes (0-1440 minutes). 
+
+There is a low activity period early in the day, which is likely when individuals are asleep, followed by an increase later in the morning and through the day as expected. Males with more than high school education tend to participate in less intense physical activity throughout the day compared to females with more than high school levels of education.
+
+
+#### Problem 3
+
+
 
 
 
