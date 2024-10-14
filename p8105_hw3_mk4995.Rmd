@@ -9,6 +9,55 @@ output: github_document
 library(tidyverse)
 ```
 
+## Problem 1
+
+```{r}
+library(p8105.datasets)
+data("ny_noaa")
+```
+
+This dataset contains `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns. Variables include weather station id, date of observation,  (tenths of mm), snowfall (mm), snow depth (mm), and min and max temperature (tenths of degrees C).
+
+Below we clean the data, creating separate variables for year, month, and day and converting `tmax` and `tmin` to numeric. We find that 0 is the most commonly observed value for snowfall. This is because most days of the year, it does not snow at all in NY. The second most commonly observed value is `NA`, indicating missingness. Other common values are 13, 25, and 51, suggesting that snowfall is originally recorded in fractions of an inch and converted to mm.
+
+```{r}
+ny_noaa %>% 
+  count(snow) %>%
+  arrange(desc(n))
+
+ny_noaa = 
+  ny_noaa %>% 
+  separate(date, into = c("year", "month", "day"), convert = TRUE) %>% 
+  mutate(
+    tmax = as.numeric(tmax),
+    tmin = as.numeric(tmin))
+```
+
+Below is a two-panel plot showing the average max temperature in January and in July in each station across years. As expected, the mean temperature in January is much lower than the mean temperature in July for all stations and across all years. All stations appear to follow similar trends of temperature peaks and valleys within a month across the years, i.e. when one station has a high monthly mean temperature for a given year, most other stations also have a high monthly mean temperature for that year. We do see one uncharacteristically cold station in July of 1987 or 1988, as well as a few other less drastic outliers.
+
+```{r}
+ny_noaa %>% 
+  group_by(id, year, month) %>% 
+  filter(month %in% c(1, 7)) %>% 
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE, color = id)) %>% 
+  ggplot(aes(x = year, y = mean_tmax, group = id)) + geom_point() + geom_path() +
+  facet_grid(~month) +
+  labs(title = "Mean monthly temperature for each station across years for January and July")
+```
+
+Below we show a two-panel plot including (i) a hex plot of `tmax` vs `tmin` for the full dataset; and (ii) a ridge plot showing the distribution of snowfall values (in mm) greater than 0 and less than 100 separately by year. 
+
+From the hex plot we see that while there is some variability, the majority of the data cluster tightly in the center of the distribution. In relatively rare cases, it seems that `tmax` is less than `tmin`, which raises questions about data recording and quality.
+
+```{r}
+hex = 
+  ny_noaa %>% 
+  ggplot(aes(x = tmin, y = tmax)) + 
+  geom_hex()
+
+hex
+```
+
 ## Problem 2
 
 *Start by organizing the datasets - load, clean, merge, and organize into a final `merged_df` dataset.*
@@ -98,7 +147,7 @@ There is a concentration of female participants in their 40s and 50s belonging t
 
 *Using your tidied dataset, aggregate across minutes to create a total activity variable for each participant.*
 
-```{r}
+```{r message=FALSE}
 merged_df |> 
   group_by(seqn, sex, age, education) |> 
   summarize(
@@ -120,7 +169,7 @@ merged_df |>
 
 Females tend to have a higher total activity level than males in all panels. Overall, in all education categories, there is a general decline in total activity as age increases, especially noticeable after the age of 60. This trend is consistent for both males and females, with some fluctuations before age 60 depending on the education level. Individuals with higher education tend to show a more gradual decline in activity compared to those with less education.
 
-```{r}
+```{r message=FALSE}
 merged_df |> 
   ggplot(aes(x = minute_interval, y = mims, group = seqn, color = sex)) +
   geom_line(alpha = 0.1) + 
@@ -143,8 +192,7 @@ This graph depicts 24-hour activity time courses by education level and sex. It 
 
 There is a low activity period early in the day, which is likely when individuals are asleep, followed by an increase later in the morning and through the day as expected. Males with more than high school education tend to participate in less intense physical activity throughout the day compared to females with more than high school levels of education.
 
-
-#### Problem 3
+## Problem 3
 
 *Import, clean, and tidy these data, and describe the resulting dataset.*
 
@@ -263,21 +311,49 @@ citibike_tidy_df |>
 
 *Make a plot to investigate the effects of day of the week, month, and year on median ride duration.*
 
-```{r}
-citibike_tidy_df |>
-  mutate(
-    date = paste(month, year, sep = " ")
-  ) |> 
-  group_by(date, weekdays) |> 
+```{r message=FALSE}
+citibike_tidy_df |> 
+  group_by(year, month, weekdays) |> 
   summarize(median_duration = median(duration, na.rm = TRUE)) |> 
-  ggplot(aes(x = weekdays, y = median_duration, fill = date)) +
-  geom_bar(stat = "identity", position = "dodge") +
+  ggplot(aes(x = weekdays, y = median_duration, fill = month)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  facet_grid(month ~ year) +
   labs(
     x = "Weekdays",
     y = "Median Ride Duration (mins)",
-    fill = "Date",
+    fill = "Month",
     title = "Median Ride Duration by Weekday, Month, and Year"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
   )
 ```
+
+The graph above describes the distriibution of median ride duration per weekday in January and July 2020 and 2024. July generally shows higher median ride durations across all weekdays compared to January for both years (2020 and 2024), which reflects the warmer weather that is more suitable for biking. Saturday and Sunday (weekends) exhibit longer median ride durations compared to weekdays, especially in July for both 2020 and 2024. The pattern of shorter rides during weekdays and longer rides on weekends is consistent across 2020 and 2024, indicating a stable pattern of usage. The median durations in July 2024 appear to be slightly shorter than in July 2020 for weekdays.
+
+*For data in 2024, make a figure that shows the impact of month, membership status, and bike type on the distribution of ride duration.*
+
+```{r message=FALSE}
+citibike_tidy_df |> 
+  filter(year == 2024) |> 
+  ggplot(aes(x = duration, fill = month)) +
+  geom_histogram(position = "dodge", bins = 10) + 
+  facet_wrap(~ member_casual + rideable_type, ncol = 2) +
+  labs(
+    title = "Ride Duration Distribution by Month, Membership, and Bike Type (2024)",
+    x = "Ride Duration (mins)",
+    y = "Count of Rides",
+    fill = "Month"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  ) +
+  xlim(0, 150)
+```
+
+Based on the histogram distribution of ride duration above, we can examine the effects of month, membership status (casual or member), and ride type (classic or electric bike). Overall, members are more likely to exhibit more consistent, shorter rides. There are more electric bikes in earlier duration, possibly because they are faster. Longer rides may occur in summer months like July due to better weather and recreational use. Shorter rides may be more common in January, likely for practical purposes like commuting.
+
 
 
