@@ -11,7 +11,7 @@ library(tidyverse)
 
 ## Problem 1
 
-```{r}
+```{r import_noaa}
 library(p8105.datasets)
 data("ny_noaa")
 ```
@@ -20,7 +20,7 @@ This dataset contains `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns. Vari
 
 Below we clean the data, creating separate variables for year, month, and day and converting `tmax` and `tmin` to numeric. We find that 0 is the most commonly observed value for snowfall. This is because most days of the year, it does not snow at all in NY. The second most commonly observed value is `NA`, indicating missingness. Other common values are 13, 25, and 51, suggesting that snowfall is originally recorded in fractions of an inch and converted to mm.
 
-```{r}
+```{r noaa_cleaning}
 ny_noaa %>% 
   count(snow) %>%
   arrange(desc(n))
@@ -35,7 +35,7 @@ ny_noaa =
 
 Below is a two-panel plot showing the average max temperature in January and in July in each station across years. As expected, the mean temperature in January is much lower than the mean temperature in July for all stations and across all years. All stations appear to follow similar trends of temperature peaks and valleys within a month across the years, i.e. when one station has a high monthly mean temperature for a given year, most other stations also have a high monthly mean temperature for that year. We do see one uncharacteristically cold station in July of 1987 or 1988, as well as a few other less drastic outliers.
 
-```{r}
+```{r noaa_scatter}
 ny_noaa %>% 
   group_by(id, year, month) %>% 
   filter(month %in% c(1, 7)) %>% 
@@ -45,24 +45,19 @@ ny_noaa %>%
   labs(title = "Mean monthly temperature for each station across years for January and July")
 ```
 
-Below we show a two-panel plot including (i) a hex plot of `tmax` vs `tmin` for the full dataset; and (ii) a ridge plot showing the distribution of snowfall values (in mm) greater than 0 and less than 100 separately by year. 
+Below is a hex plot of `tmax` vs `tmin` for the full dataset. There seems to be some variability, but majority of the data are clustered tightly in the center of the distribution. 
 
-From the hex plot we see that while there is some variability, the majority of the data cluster tightly in the center of the distribution. In relatively rare cases, it seems that `tmax` is less than `tmin`, which raises questions about data recording and quality.
-
-```{r}
-hex = 
-  ny_noaa %>% 
+```{r noaa_hex}
+ny_noaa %>% 
   ggplot(aes(x = tmin, y = tmax)) + 
   geom_hex()
-
-hex
 ```
 
 ## Problem 2
 
-*Start by organizing the datasets - load, clean, merge, and organize into a final `merged_df` dataset.*
+Organize the datasets - load, clean, merge, and organize into a final `merged_df` dataset.
 
-```{r organize, message = FALSE}
+```{r clean_nhanes, message = FALSE}
 # Import and clean nhanes_accel.csv
 accel_df = 
   read_csv("data/nhanes_accel.csv") |> 
@@ -107,8 +102,9 @@ merged_df = left_join( # merge datasets using a left join so it only includes th
 )
 ```
 
+The final table `merged_df` contains both NHANES dataset merged on sequence number. There are `r nrow(merged_df)` rows and `r ncol(merged_df)` columns in the final dataset. In the cleaning process, I pivoted the 1440 `mims` variables so that it was broken down into two new variables instead (minute_interval and mims value). I also converted sex and education to factor variables for the purposes of creating readable tables and graphs later on. I used a left join so that `merged_df` only includes the data specified in `nhanes_covar.csv`.
 
-*Produce a reader-friendly table for the number of men and women in each education category.*
+The table below shows the number of men and women in each education category. There are about the same number of female and male participants in each education category except there are far more males in the high school equivalent group.
 
 ```{r education_categories, messsage=FALSE}
 
@@ -124,11 +120,12 @@ merged_df |>
   knitr::kable()
 ```
 
-Thee are about the same number of female and male participants in each education category except there are far more males in the high school equivalent group.
 
-*Create a visualization of the age distributions for men and women in each education category.*
+The 3-panel histogram below shows the age distributions for men and women in each education category. Males are shown in red, while females are shown in blue. 
 
-```{r}
+There is a concentration of female participants in their 40s and 50s belonging to the more than high school category, while fewer women in the same age group have lower education levels. For males, there is a more even distribution across all ages, but there is a higher concentration of individuals in their 30s and 40s with more than a high school education. Overall, both men and women with higher education levels are distributed more evenly across various age groups, while those with less education are less represented, particularly at younger ages.
+
+```{r merged_histogram}
 merged_df |> 
   distinct(seqn, .keep_all = TRUE) |> # keep all columns but identify unique seq numbers
   ggplot(aes(x = age, fill = sex)) +
@@ -142,12 +139,11 @@ merged_df |>
   scale_y_continuous(breaks = scales::pretty_breaks(n = 10))
 ```
 
-There is a concentration of female participants in their 40s and 50s belonging to the more than high school category, while fewer women in the same age group have lower education levels. For males, there is a more even distribution across all ages, but there is a higher concentration of individuals in their 30s and 40s with more than a high school education. Overall, both men and women with higher education levels are distributed more evenly across various age groups, while those with less education are less represented, particularly at younger ages.
+The 3-panel plot below compares the aggregate activity over the day for men vs. women and is separated by each education level. I used the LOESS method to illustrate differences between the groups.
 
+Females tend to have a higher total activity level than males in all panels. Overall, in all education categories, there is a general decline in total activity as age increases, especially noticeable after the age of 60. This trend is consistent for both males and females, with some fluctuations before age 60 depending on the education level. Individuals with higher education tend to show a more gradual decline in activity compared to those with less education.
 
-*Using your tidied dataset, aggregate across minutes to create a total activity variable for each participant.*
-
-```{r message=FALSE}
+```{r merged_aggregate_scatter, message=FALSE}
 merged_df |> 
   group_by(seqn, sex, age, education) |> 
   summarize(
@@ -167,9 +163,11 @@ merged_df |>
   )
 ```
 
-Females tend to have a higher total activity level than males in all panels. Overall, in all education categories, there is a general decline in total activity as age increases, especially noticeable after the age of 60. This trend is consistent for both males and females, with some fluctuations before age 60 depending on the education level. Individuals with higher education tend to show a more gradual decline in activity compared to those with less education.
+This 3-panel graph shows 24-hour activity time courses for each sequence number by education level and sex. Rather than using an aggregate variable, I layered line graphs over each other, with a bolded trend line for males vs. females in each education category.
 
-```{r message=FALSE}
+There is a low activity period early in the day, which is likely when people are asleep. We then see an increase during waking hours. Males with more than high school education tend to participate in less intense physical activity throughout the day compared to females with more than high school levels of education.
+
+```{r merge_24hr_activity, message=FALSE}
 merged_df |> 
   ggplot(aes(x = minute_interval, y = mims, group = seqn, color = sex)) +
   geom_line(alpha = 0.1) + 
@@ -188,16 +186,12 @@ merged_df |>
   )
 ```
 
-This graph depicts 24-hour activity time courses by education level and sex. It is divided into three panels representing different education levels: Less than high school, High school equivalent, and More than high school. The y-axis shows activity levels in terms of "mims" (a measurement of physical activity intensity), while the x-axis spans a 24-hour period in minutes (0-1440 minutes). 
-
-There is a low activity period early in the day, which is likely when individuals are asleep, followed by an increase later in the morning and through the day as expected. Males with more than high school education tend to participate in less intense physical activity throughout the day compared to females with more than high school levels of education.
 
 ## Problem 3
 
-*Import, clean, and tidy these data, and describe the resulting dataset.*
+I started by importing and cleaning each dataset separately. I added two columns, `month` and `year`, to each dataset and kept all unique ride IDs.
 
-```{r message=FALSE}
-
+```{r import_citibike, message=FALSE}
 # Import each dataset, remove duplicates, and add date columns (month and year).
 
 jan_2020 =
@@ -235,7 +229,11 @@ jul_2024 =
     year = 2024
   ) |> 
   distinct(ride_id, .keep_all = TRUE)
+```
 
+I then merged the four datasets above into `citibike_tidy_df`.
+
+```{r bind_citibike}
 # Bind the rows together.
 
 citibike_tidy_df = 
@@ -269,7 +267,7 @@ nrows = nrow(citibike_tidy_df)
 ncols = ncol(citibike_tidy_df)
 ```
 
-Each dataset was first cleaned separately by using the janitor package, removing duplicate ride_ids, and adding month/year columns. Then, the four datasets (from January and July of 2020 and 2024) were merged using bind_rows(). I then converted `rideable_type` and `member_casual` into factor variables, and removed the suffix "_bike" from the `rideable_type` values. The resulting dataset has `r nrows` rows and `r ncols` columns. The columns are as follows:
+After merging the datasets with `bind_row()`, I then converted `rideable_type` and `member_casual` into factor variables, and removed the suffix "_bike" from the `rideable_type` values. The resulting dataset has `r nrows` rows and `r ncols` columns. The columns are as follows:
 * `ride_id`
 * `rideable_type`: Electric or Classic
 * `weekdays`
@@ -280,9 +278,11 @@ Each dataset was first cleaned separately by using the janitor package, removing
 * `year`
 
 
-*Produce a reader-friendly table showing the total number of rides in each combination of year and month separating casual riders and Citi Bike members.*
+Below is a reader-friendly table showing the total number of rides in each combination of year and month separating casual riders and Citi Bike members. 
 
-```{r message=FALSE}
+There are generally more members than casual riders. We also see a a substantial increase in riders for both categories in the summer months compared to winter, the most notable being the increase for members in 2024 between January and July. We can also note the decrease for casual members between July 2020 and January 2024, whereas there was a slight increase in members, which may indicate that Citibke has a good retention of members, but not for casual riders.
+
+```{r citibike_table1, message=FALSE}
 citibike_tidy_df |> 
 group_by(member_casual, year, month) |> # group by member_casual and month/year
   summarize(count = n()) |> # get counts organized by groups (month, year, member_casual)
@@ -293,10 +293,10 @@ group_by(member_casual, year, month) |> # group by member_casual and month/year
   knitr::kable()
 ```
 
-As seen in the table, there are generally more members than casual riders. There is a substantial increase in riders for both caetgories in the summer months compared to winter. The increase is most notable for members in 2024 between January and July. We can also note the decrease for casual members between July 2020 and January 2024, whereas there was a slight increase in members, which may indicate that Citibke has a good retention of members, but not for casual riders.
 
-*Make a table showing the 5 most popular starting stations for July 2024; include the number of rides originating from these stations.*
-```{r}
+The table below shows the 5 most popular starting stations for July 2024. 
+
+```{r citibike_table2}
 citibike_tidy_df |> 
   group_by(start_station_name) |> # group by starting station
   filter(
@@ -309,9 +309,11 @@ citibike_tidy_df |>
   knitr::kable()
 ```
 
-*Make a plot to investigate the effects of day of the week, month, and year on median ride duration.*
+The 4-panel plot below visualizes the effects of day of the week, month, and year on median ride duration. Each panel shows a combination of January/July and 2020/2024. 
 
-```{r message=FALSE}
+July generally shows higher median ride duration across all weekdays compared to January for both years (2020 and 2024), which makes sense, as warmer weather is more suitable for biking. The pattern of shorter rides during weekdays and longer rides on weekends is consistent across 2020 and 2024, but is especially longer on weekends in July. The median duration in July 2024 appear to be slightly shorter than in July 2020 for weekdays.
+
+```{r citibike_month_year, message=FALSE}
 citibike_tidy_df |> 
   group_by(year, month, weekdays) |> 
   summarize(median_duration = median(duration, na.rm = TRUE)) |> 
@@ -330,11 +332,12 @@ citibike_tidy_df |>
   )
 ```
 
-The graph above describes the distriibution of median ride duration per weekday in January and July 2020 and 2024. July generally shows higher median ride durations across all weekdays compared to January for both years (2020 and 2024), which reflects the warmer weather that is more suitable for biking. Saturday and Sunday (weekends) exhibit longer median ride durations compared to weekdays, especially in July for both 2020 and 2024. The pattern of shorter rides during weekdays and longer rides on weekends is consistent across 2020 and 2024, indicating a stable pattern of usage. The median durations in July 2024 appear to be slightly shorter than in July 2020 for weekdays.
 
-*For data in 2024, make a figure that shows the impact of month, membership status, and bike type on the distribution of ride duration.*
+The histogram below shows the impact of month, membership status, and bike type on the distribution of ride duration in 2024. 
 
-```{r message=FALSE}
+Each panel shows the effect of membership status (casual or member) and ride type (classic or electric bike) combined on ride duration in January versus July. Overall, members are more likely to exhibit more consistent, shorter rides. There are more electric bikes in earlier duration, possibly because they are faster. Longer rides may occur in summer months like July due to better weather and recreational use. 
+
+```{r citibike_2024, message=FALSE}
 citibike_tidy_df |> 
   filter(year == 2024) |> 
   ggplot(aes(x = duration, fill = month)) +
@@ -352,8 +355,4 @@ citibike_tidy_df |>
   ) +
   xlim(0, 150)
 ```
-
-Based on the histogram distribution of ride duration above, we can examine the effects of month, membership status (casual or member), and ride type (classic or electric bike). Overall, members are more likely to exhibit more consistent, shorter rides. There are more electric bikes in earlier duration, possibly because they are faster. Longer rides may occur in summer months like July due to better weather and recreational use. Shorter rides may be more common in January, likely for practical purposes like commuting.
-
-
 
